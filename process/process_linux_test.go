@@ -6,8 +6,10 @@ package process
 import (
 	"context"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -176,8 +178,38 @@ func Test_fillFromTIDStatWithContext_lx_brandz(t *testing.T) {
 	}
 }
 
-func BenchmarkMemoryMapsGroupedTrue(b *testing.B) {
+func setupProcessWithSmaps(tb testing.TB) Process {
 	p := testGetProcess()
+	fakeHostProc := tb.TempDir()
+
+	if err := os.MkdirAll(filepath.Join(fakeHostProc, strconv.Itoa(int(p.Pid))), 0777); err != nil {
+		tb.Fatal(err)
+	}
+
+	for _, basename := range []string{"smaps", "smaps_rollup"} {
+		dest, err := os.Create(filepath.Join(fakeHostProc, strconv.Itoa(int(p.Pid)), basename))
+		if err != nil {
+			tb.Fatal(err)
+		}
+		defer dest.Close()
+
+		content, err := os.Open(fmt.Sprintf("/home/vagrant/dd/datadog-agent/dev/dist/%s.txt", basename))
+		if err != nil {
+			tb.Fatal(err)
+		}
+		defer content.Close()
+
+		if _, err := io.Copy(dest, content); err != nil {
+			tb.Fatal(err)
+		}
+	}
+
+	tb.Setenv("HOST_PROC", fakeHostProc)
+	return p
+}
+
+func BenchmarkMemoryMapsGroupedTrue(b *testing.B) {
+	p := setupProcessWithSmaps(b)
 	ctx := context.Background()
 	for i := 0; i < b.N; i++ {
 		p.MemoryMapsWithContext(ctx, true)
@@ -185,7 +217,7 @@ func BenchmarkMemoryMapsGroupedTrue(b *testing.B) {
 }
 
 func BenchmarkMemoryMapsGroupedFalse(b *testing.B) {
-	p := testGetProcess()
+	p := setupProcessWithSmaps(b)
 	ctx := context.Background()
 	for i := 0; i < b.N; i++ {
 		p.MemoryMapsWithContext(ctx, false)
