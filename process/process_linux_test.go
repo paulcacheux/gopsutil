@@ -210,6 +210,7 @@ func setupProcessWithSmaps(tb testing.TB) Process {
 
 func BenchmarkMemoryMapsGroupedTrue(b *testing.B) {
 	p := setupProcessWithSmaps(b)
+	b.ResetTimer()
 	ctx := context.Background()
 	for i := 0; i < b.N; i++ {
 		p.MemoryMapsWithContext(ctx, true)
@@ -218,6 +219,7 @@ func BenchmarkMemoryMapsGroupedTrue(b *testing.B) {
 
 func BenchmarkMemoryMapsGroupedFalse(b *testing.B) {
 	p := setupProcessWithSmaps(b)
+	b.ResetTimer()
 	ctx := context.Background()
 	for i := 0; i < b.N; i++ {
 		p.MemoryMapsWithContext(ctx, false)
